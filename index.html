@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>용수철 진자의 주기 운동 시뮬레이션</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- KaTeX for Physics Equations -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        canvas { touch-action: none; } /* 모바일에서 캔버스 터치 스크롤 방지 */
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 text-slate-800">
+
+    <div class="max-w-6xl mx-auto">
+        
+        <!-- 배너 -->
+        <div class="bg-indigo-600 text-white text-sm font-bold py-2 px-4 rounded-t-xl w-full">
+            고2 역학과 에너지
+        </div>
+
+        <!-- Header Section -->
+        <header class="bg-white rounded-b-xl shadow-sm border border-slate-200 p-6 mb-6">
+            <h1 class="text-3xl font-bold text-slate-900 mb-2">용수철 진자의 주기 운동 탐구</h1>
+            <p class="text-slate-600 mb-4">단진동의 특징을 이해하고, 진폭·질량·탄성계수가 주기에 미치는 영향을 관찰해 봅시다.</p>
+            
+            <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 text-sm text-blue-900">
+                <span class="font-bold block mb-1">핵심 개념</span>
+                이상적인 용수철 진자의 주기 $T$는 진폭(잡아당기는 거리)에 관계없이 일정하며, 질량 $m$의 제곱근에 비례하고 탄성계수 $k$의 제곱근에 반비례합니다.
+                <div class="mt-2 text-center text-lg">
+                    $T = 2\pi \sqrt{\frac{m}{k}}$
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Layout Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+            
+            <!-- Left Column: Controls (Span 5) -->
+            <div class="lg:col-span-5 flex flex-col gap-6">
+                
+                <!-- Control Panel -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                    <h2 class="text-xl font-bold mb-4 border-b pb-2">실험 조작</h2>
+                    
+                    <!-- Tabs -->
+                    <div class="flex w-full mb-6 bg-slate-100 p-1 rounded-lg">
+                        <button id="tab-worksheet" class="flex-1 py-2 font-bold text-sm rounded-md bg-white text-blue-600 shadow-sm transition-all">활동지 모드</button>
+                        <button id="tab-free" class="flex-1 py-2 font-bold text-sm rounded-md text-slate-500 hover:text-slate-700 transition-all">자유 탐구 모드</button>
+                    </div>
+
+                    <!-- Worksheet Mode Controls -->
+                    <div id="worksheet-controls" class="mb-5">
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">잡아당기는 거리 (진폭) 선택</label>
+                        <p class="text-xs text-slate-500 mb-3">제공된 활동지 데이터를 기반으로 실험실 오차가 반영된 프리셋입니다.</p>
+                        <div class="grid grid-cols-4 gap-2">
+                            <button class="btn-preset active py-2 border-2 border-blue-500 bg-blue-50 text-blue-700 rounded-lg font-bold transition-colors" data-amp="5">5 cm</button>
+                            <button class="btn-preset py-2 border-2 border-slate-200 rounded-lg font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-amp="10">10 cm</button>
+                            <button class="btn-preset py-2 border-2 border-slate-200 rounded-lg font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-amp="15">15 cm</button>
+                            <button class="btn-preset py-2 border-2 border-slate-200 rounded-lg font-medium text-slate-600 hover:bg-slate-50 transition-colors" data-amp="20">20 cm</button>
+                        </div>
+                    </div>
+
+                    <!-- Free Mode Controls -->
+                    <div id="free-controls" class="mb-5 hidden space-y-5">
+                        <p class="text-xs text-slate-500 mb-2">물리량을 자유롭게 변경하며 주기의 변화를 관찰해보세요.</p>
+                        <div>
+                            <label class="flex justify-between text-sm font-semibold text-slate-700 mb-2">
+                                <span>추의 질량 ($m$)</span>
+                                <span id="disp-val-m" class="text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded">1.0 kg</span>
+                            </label>
+                            <input type="range" id="slider-m" min="0.1" max="5.0" step="0.1" value="1.0" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                        </div>
+                        <div>
+                            <label class="flex justify-between text-sm font-semibold text-slate-700 mb-2">
+                                <span>용수철 탄성계수 ($k$)</span>
+                                <span id="disp-val-k" class="text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded">10 N/m</span>
+                            </label>
+                            <input type="range" id="slider-k" min="5" max="100" step="1" value="10" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                        </div>
+                        <div>
+                            <label class="flex justify-between text-sm font-semibold text-slate-700 mb-2">
+                                <span>잡아당기는 거리 (진폭 $A$)</span>
+                                <span id="disp-val-a" class="text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded">10 cm</span>
+                            </label>
+                            <input type="range" id="slider-a" min="1" max="25" step="1" value="10" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                        </div>
+                    </div>
+
+                    <!-- Interactive Status -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-5 flex justify-between items-center">
+                        <div>
+                            <span class="text-sm text-slate-500 font-bold block mb-1">현재 상태</span>
+                            <div class="text-xl font-mono text-slate-800">
+                                $t =$ <span id="disp-time">0.00</span> s <br>
+                                $y =$ <span id="disp-y">5.0</span> cm
+                            </div>
+                            <div id="disp-mk-container" class="hidden text-sm font-mono text-slate-500 mt-2 pt-2 border-t border-slate-200">
+                                $m =$ <span id="disp-status-m">1.0</span> kg &nbsp;|&nbsp; 
+                                $k =$ <span id="disp-status-k">10</span> N/m
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-sm text-slate-500 font-bold block mb-1">진동 횟수</span>
+                            <div class="text-3xl font-bold text-indigo-600">
+                                <span id="disp-cycles">0</span><span class="text-lg text-slate-400">/10</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex gap-3">
+                        <button id="btn-measure" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                            </svg>
+                            10회 왕복 측정 시작
+                        </button>
+                        <button id="btn-record" disabled class="bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors whitespace-nowrap">
+                            결과 기록
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Simulation Canvas (Span 7) -->
+            <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 p-2 relative overflow-hidden flex justify-center items-center h-[600px]">
+                <canvas id="simCanvas" width="600" height="600" class="w-full h-full object-contain"></canvas>
+                <!-- Instructional Overlay -->
+                <div id="sim-overlay" class="absolute inset-0 bg-white/50 backdrop-blur-[2px] flex items-center justify-center z-10 transition-opacity duration-300">
+                    <div class="bg-white/90 px-6 py-4 rounded-full shadow-lg font-bold text-slate-700 border border-slate-200">
+                        측정 시작 버튼을 눌러주세요.
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- Result Table Section -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2 border-b pb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                탐구 결과 기록
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-100 border-b border-slate-200">
+                        <tr>
+                            <th class="py-3 px-2 font-bold text-slate-800 text-sm w-1/5 text-center">모드</th>
+                            <th class="py-3 px-2 font-bold text-slate-800 text-sm w-1/5 text-center">질량<br>(kg)</th>
+                            <th class="py-3 px-2 font-bold text-slate-800 text-sm w-1/5 text-center">탄성계수<br>(N/m)</th>
+                            <th class="py-3 px-2 font-bold text-slate-800 text-sm w-1/5 text-center">진폭<br>(cm)</th>
+                            <th class="py-3 px-2 font-bold text-slate-800 text-sm w-1/5 text-center">주기 $T$<br>(초)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="result-tbody" class="divide-y divide-slate-100 text-center font-medium text-slate-700">
+                        <!-- Data rows will be injected here -->
+                        <tr><td colspan="5" class="py-6 text-slate-400 text-sm font-normal">측정을 완료하고 결과를 기록해 보세요.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 text-xs text-slate-500 text-right">
+                * 주기는 10회 왕복 측정에 걸린 시간을 10으로 나눈 값입니다.
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Message Box (Modal) -->
+    <div id="messageBox" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full transform scale-95 transition-transform duration-300 mx-4">
+            <div class="text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-emerald-100 mb-4">
+                    <svg class="h-6 w-6 text-emerald-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 mb-2">측정 완료!</h3>
+                <p class="text-sm text-slate-600 mb-4">
+                    10회 왕복하는 데 걸린 시간:<br>
+                    <span class="text-xl font-mono font-bold text-slate-800" id="popup-time">10.20 s</span>
+                </p>
+                <div class="bg-slate-50 p-3 rounded-lg mb-6">
+                    <p class="text-xs text-slate-500 mb-1">계산된 주기 (1회 왕복 시간)</p>
+                    <!-- KaTeX 렌더링용 컨테이너 -->
+                    <div id="popup-katex" class="text-lg font-bold text-blue-600"></div>
+                </div>
+                <button id="btn-close-msg" class="w-full inline-flex justify-center rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                    확인
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 초기화 및 DOM 요소 참조
+        // ==========================================
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ],
+                throwOnError : false
+            });
+        });
+
+        // 캔버스 설정
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width;
+        const H = canvas.height;
+
+        // 천장 충돌을 방지하기 위해 중심점(평형점)을 350px로 넉넉하게 낮춤
+        const EQUILIBRIUM_Y = 350; 
+        const PIXEL_PER_CM = 10; // 1cm = 10px
+
+        // 물리 변수
+        let time = 0; // 초
+        let cycles = 0;
+        let lastTimestamp = 0;
+        let isPlaying = false;
+        let isMeasuring = false;
+        
+        // 모드 변수
+        let currentMode = 'worksheet'; // 'worksheet' or 'free'
+        let freeMass = 1.0;
+        let freeK = 10;
+        let currentAmp = 5; 
+        
+        // 데이터 (활동지에 기재된 결과값을 역산하여 맞춤)
+        const LAB_PRESETS = {
+            5:  { T: 1.02 },
+            10: { T: 1.04 },
+            15: { T: 1.03 },
+            20: { T: 1.05 }
+        };
+        let currentPeriod = LAB_PRESETS[5].T;
+        let yPos = currentAmp; // 초기 위치
+
+        const recordedData = [];
+
+        // UI 요소
+        const dispTime = document.getElementById('disp-time');
+        const dispY = document.getElementById('disp-y');
+        const dispCycles = document.getElementById('disp-cycles');
+        const overlay = document.getElementById('sim-overlay');
+        const btnMeasure = document.getElementById('btn-measure');
+        const btnRecord = document.getElementById('btn-record');
+        const presetButtons = document.querySelectorAll('.btn-preset');
+        const resultTbody = document.getElementById('result-tbody');
+        
+        // 탭 요소
+        const tabWorksheet = document.getElementById('tab-worksheet');
+        const tabFree = document.getElementById('tab-free');
+        const worksheetControls = document.getElementById('worksheet-controls');
+        const freeControls = document.getElementById('free-controls');
+        const sliderM = document.getElementById('slider-m');
+        const sliderK = document.getElementById('slider-k');
+        const sliderA = document.getElementById('slider-a');
+        const dispValM = document.getElementById('disp-val-m');
+        const dispValK = document.getElementById('disp-val-k');
+        const dispValA = document.getElementById('disp-val-a');
+        const dispMkContainer = document.getElementById('disp-mk-container');
+        const dispStatusM = document.getElementById('disp-status-m');
+        const dispStatusK = document.getElementById('disp-status-k');
+
+        // 모달 요소
+        const messageBox = document.getElementById('messageBox');
+        const popupTime = document.getElementById('popup-time');
+        const popupKatex = document.getElementById('popup-katex');
+        const btnCloseMsg = document.getElementById('btn-close-msg');
+
+        // ==========================================
+        // 캔버스 그리기 함수들
+        // ==========================================
+        function drawCeiling() {
+            ctx.fillStyle = '#cbd5e1'; // slate-300
+            ctx.fillRect(W/2 - 80, 40, 160, 20);
+            
+            // 빗금 패턴 (천장 표시)
+            ctx.strokeStyle = '#94a3b8'; // slate-400
+            ctx.lineWidth = 2;
+            for(let i = W/2 - 80; i < W/2 + 80; i += 10) {
+                ctx.beginPath();
+                ctx.moveTo(i, 40);
+                ctx.lineTo(i + 10, 20);
+                ctx.stroke();
+            }
+
+            // 고정 고리
+            ctx.fillStyle = '#64748b'; // slate-500
+            ctx.beginPath();
+            ctx.arc(W/2, 65, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawRuler() {
+            const rulerX = W/2 - 120;
+            const rulerYStart = EQUILIBRIUM_Y - 250; // -25cm
+            const rulerYEnd = EQUILIBRIUM_Y + 250;   // +25cm
+            
+            // 자 본체
+            ctx.fillStyle = '#f1f5f9';
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1;
+            ctx.fillRect(rulerX - 30, rulerYStart - 20, 60, rulerYEnd - rulerYStart + 40);
+            ctx.strokeRect(rulerX - 30, rulerYStart - 20, 60, rulerYEnd - rulerYStart + 40);
+            
+            // 눈금 그리기 (1cm 마다)
+            ctx.fillStyle = '#334155';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.font = '12px Inter, sans-serif';
+
+            for(let cm = -25; cm <= 25; cm++) {
+                const y = EQUILIBRIUM_Y + cm * PIXEL_PER_CM;
+                ctx.beginPath();
+                ctx.moveTo(rulerX, y);
+                
+                if (cm % 5 === 0) {
+                    ctx.lineTo(rulerX + 15, y);
+                    ctx.fillText(Math.abs(cm), rulerX - 5, y);
+                } else {
+                    ctx.lineTo(rulerX + 8, y);
+                }
+                ctx.strokeStyle = '#64748b';
+                ctx.stroke();
+            }
+
+            // 0점선 (평형점) 강조
+            ctx.strokeStyle = '#ef4444'; // red-500
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(rulerX + 15, EQUILIBRIUM_Y);
+            ctx.lineTo(W/2 + 80, EQUILIBRIUM_Y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function drawSpring(x, topY, bottomY) {
+            const coils = 20;
+            const width = 30;
+            const totalHeight = bottomY - topY - 20; // 20px gap for hook
+            const step = totalHeight / coils;
+            
+            ctx.strokeStyle = '#94a3b8';
+            // 자유 탐구 모드 시 k값에 따라 용수철 두께 시각화 (기본 10 기준)
+            const k = (currentMode === 'free') ? freeK : 10;
+            ctx.lineWidth = 1 + 2 * Math.sqrt(k / 10); 
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            
+            ctx.beginPath();
+            ctx.moveTo(x, topY);
+            ctx.lineTo(x, topY + 10); // straight part
+            
+            for (let i = 0; i < coils; i++) {
+                const curY = topY + 10 + i * step;
+                const nextY = topY + 10 + (i + 1) * step;
+                
+                if (i % 2 === 0) {
+                    ctx.lineTo(x - width/2, (curY + nextY)/2);
+                    ctx.lineTo(x, nextY);
+                } else {
+                    ctx.lineTo(x + width/2, (curY + nextY)/2);
+                    ctx.lineTo(x, nextY);
+                }
+            }
+            
+            ctx.lineTo(x, bottomY); // straight part to mass
+            ctx.stroke();
+        }
+
+        function drawMass(x, centerY) {
+            // 질량에 따라 추의 크기 시각화 변경
+            const m = (currentMode === 'free') ? freeMass : 1.0;
+            const width = 40 + m * 6; // 폭 조절
+            const height = 20 + 20 * Math.sqrt(m); // 높이 조절
+            const topY = centerY - height/2;
+            
+            // Draw Hook connection
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(x, topY - 10);
+            ctx.lineTo(x, topY);
+            ctx.stroke();
+
+            // Draw Brass Weight (Mass)
+            const gradient = ctx.createLinearGradient(x - width/2, 0, x + width/2, 0);
+            gradient.addColorStop(0, '#d97706'); // amber-600
+            gradient.addColorStop(0.5, '#fcd34d'); // amber-300
+            gradient.addColorStop(1, '#b45309'); // amber-700
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.roundRect(x - width/2, topY, width, height, 4);
+            ctx.fill();
+            
+            // Highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fillRect(x - width/2 + 5, topY + 2, 8, height - 4);
+
+            // Label
+            ctx.fillStyle = '#451a03'; // amber-900
+            ctx.font = 'bold 14px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(currentMode === 'free' ? `${m.toFixed(1)}kg` : '추', x, centerY);
+        }
+
+        // ==========================================
+        // 애니메이션 및 물리 로직
+        // ==========================================
+        function animate(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const dt = (timestamp - lastTimestamp) / 1000; // seconds
+            lastTimestamp = timestamp;
+
+            if (isPlaying) {
+                time += dt;
+                
+                // 단진동 방정식: y(t) = A * cos(omega * t)
+                // 처음 당긴 상태(최대 변위)에서 시작하므로 cos 함수 사용
+                const omega = 2 * Math.PI / currentPeriod;
+                yPos = currentAmp * Math.cos(omega * time);
+
+                // 주기 카운팅 (cos가 다시 최고점에 도달할 때)
+                const currentCycle = Math.floor(time / currentPeriod);
+                if (currentCycle > cycles) {
+                    cycles = currentCycle;
+                }
+
+                if (isMeasuring && cycles >= 10) {
+                    stopMeasurement();
+                }
+            }
+
+            render();
+            requestAnimationFrame(animate);
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, W, H);
+            
+            drawCeiling();
+            drawRuler();
+            
+            const massCenterY = EQUILIBRIUM_Y + (yPos * PIXEL_PER_CM);
+            
+            drawSpring(W/2, 65, massCenterY);
+            drawMass(W/2, massCenterY);
+
+            // UI 업데이트
+            if (isPlaying) {
+                dispTime.innerText = time.toFixed(2);
+                dispY.innerText = yPos.toFixed(1);
+                dispCycles.innerText = cycles;
+            }
+        }
+
+        // ==========================================
+        // 인터랙션 제어
+        // ==========================================
+        function resetSimulation() {
+            isPlaying = false;
+            isMeasuring = false;
+            time = 0;
+            cycles = 0;
+            yPos = currentAmp; // 설정한 진폭 위치로 초기화
+            
+            dispTime.innerText = "0.00";
+            dispY.innerText = currentAmp.toFixed(1);
+            dispCycles.innerText = "0";
+            
+            overlay.style.opacity = '1';
+            overlay.style.pointerEvents = 'auto';
+            btnRecord.disabled = true;
+            
+            render();
+        }
+
+        function setPreset(amp) {
+            if (currentMode !== 'worksheet') return;
+            currentAmp = amp;
+            currentPeriod = LAB_PRESETS[amp].T;
+            
+            // 버튼 스타일 업데이트
+            presetButtons.forEach(b => {
+                b.classList.remove('active', 'border-blue-500', 'bg-blue-50', 'text-blue-700', 'font-bold');
+                b.classList.add('border-slate-200', 'text-slate-600', 'font-medium');
+            });
+            const activeBtn = document.querySelector(`.btn-preset[data-amp="${amp}"]`);
+            activeBtn.classList.remove('border-slate-200', 'text-slate-600', 'font-medium');
+            activeBtn.classList.add('active', 'border-blue-500', 'bg-blue-50', 'text-blue-700', 'font-bold');
+            
+            resetSimulation();
+        }
+
+        presetButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const amp = parseInt(e.target.dataset.amp);
+                setPreset(amp);
+            });
+        });
+
+        // 탭 전환 로직
+        function switchMode(mode) {
+            currentMode = mode;
+            if(mode === 'worksheet') {
+                tabWorksheet.className = "flex-1 py-2 font-bold text-sm rounded-md bg-white text-blue-600 shadow-sm transition-all";
+                tabFree.className = "flex-1 py-2 font-bold text-sm rounded-md text-slate-500 hover:text-slate-700 transition-all";
+                worksheetControls.classList.remove('hidden');
+                freeControls.classList.add('hidden');
+                dispMkContainer.classList.add('hidden');
+                
+                const activeBtn = document.querySelector('.btn-preset.active');
+                if(activeBtn) setPreset(parseInt(activeBtn.dataset.amp));
+            } else {
+                tabFree.className = "flex-1 py-2 font-bold text-sm rounded-md bg-white text-blue-600 shadow-sm transition-all";
+                tabWorksheet.className = "flex-1 py-2 font-bold text-sm rounded-md text-slate-500 hover:text-slate-700 transition-all";
+                worksheetControls.classList.add('hidden');
+                freeControls.classList.remove('hidden');
+                dispMkContainer.classList.remove('hidden');
+                updateFreeModeVariables();
+            }
+        }
+
+        tabWorksheet.addEventListener('click', () => switchMode('worksheet'));
+        tabFree.addEventListener('click', () => switchMode('free'));
+
+        // 자유 탐구 모드 슬라이더 업데이트
+        function updateFreeModeVariables() {
+            freeMass = parseFloat(sliderM.value);
+            freeK = parseFloat(sliderK.value);
+            currentAmp = parseFloat(sliderA.value);
+            
+            dispValM.innerText = freeMass.toFixed(1) + " kg";
+            dispValK.innerText = freeK + " N/m";
+            dispValA.innerText = currentAmp + " cm";
+            
+            dispStatusM.innerText = freeMass.toFixed(1);
+            dispStatusK.innerText = freeK;
+            
+            // 공식 T = 2 * pi * sqrt(m / k)
+            currentPeriod = 2 * Math.PI * Math.sqrt(freeMass / freeK);
+            
+            resetSimulation();
+        }
+
+        sliderM.addEventListener('input', updateFreeModeVariables);
+        sliderK.addEventListener('input', updateFreeModeVariables);
+        sliderA.addEventListener('input', updateFreeModeVariables);
+
+        // 측정 제어
+        btnMeasure.addEventListener('click', () => {
+            if (!isPlaying) {
+                resetSimulation();
+                isPlaying = true;
+                isMeasuring = true;
+                overlay.style.opacity = '0';
+                overlay.style.pointerEvents = 'none';
+            }
+        });
+
+        function stopMeasurement() {
+            isPlaying = false;
+            isMeasuring = false;
+            
+            // 정확히 10주기 시간에 맞춤
+            time = 10 * currentPeriod; 
+            dispTime.innerText = time.toFixed(2);
+            dispCycles.innerText = "10";
+            yPos = currentAmp; // 최고점으로 복귀
+            
+            btnRecord.disabled = false;
+
+            // 모달 팝업 띄우기
+            popupTime.innerText = time.toFixed(2) + " s";
+            
+            // 모달 내부 KaTeX 렌더링
+            const tText = "T = " + currentPeriod.toFixed(2) + " \\text{ s}";
+            katex.render(tText, popupKatex, { throwOnError: false });
+
+            messageBox.classList.remove('opacity-0', 'pointer-events-none');
+            messageBox.firstElementChild.classList.remove('scale-95');
+        }
+
+        btnCloseMsg.addEventListener('click', () => {
+            messageBox.classList.add('opacity-0', 'pointer-events-none');
+            messageBox.firstElementChild.classList.add('scale-95');
+        });
+
+        // 결과 기록
+        btnRecord.addEventListener('click', () => {
+            recordedData.push({ 
+                mode: currentMode,
+                amp: currentAmp, 
+                period: currentPeriod,
+                m: currentMode === 'free' ? freeMass : null,
+                k: currentMode === 'free' ? freeK : null
+            });
+            
+            // 첫 데이터면 안내 메시지 삭제
+            if (recordedData.length === 1) {
+                resultTbody.innerHTML = '';
+            }
+
+            const tr = document.createElement('tr');
+            
+            const modeLabel = currentMode === 'worksheet' 
+                ? '<span class="text-slate-500 text-xs bg-slate-100 px-2 py-1 rounded font-bold">활동지</span>' 
+                : '<span class="text-blue-500 text-xs bg-blue-50 px-2 py-1 rounded font-bold">자유탐구</span>';
+                
+            tr.innerHTML = `
+                <td class="py-2.5 px-2 border-b border-slate-100">${modeLabel}</td>
+                <td class="py-2.5 px-2 border-b border-slate-100 text-slate-600">${currentMode === 'free' ? freeMass.toFixed(1) : '-'}</td>
+                <td class="py-2.5 px-2 border-b border-slate-100 text-slate-600">${currentMode === 'free' ? freeK : '-'}</td>
+                <td class="py-2.5 px-2 font-bold text-blue-500 border-b border-slate-100">${currentAmp}</td>
+                <td class="py-2.5 px-2 font-bold text-blue-500 border-b border-slate-100">${currentPeriod.toFixed(2)}</td>
+            `;
+            resultTbody.appendChild(tr);
+
+            btnRecord.disabled = true;
+        });
+
+        // 초기 시작
+        resetSimulation();
+        requestAnimationFrame(animate);
+
+    </script>
+</body>
+</html>
